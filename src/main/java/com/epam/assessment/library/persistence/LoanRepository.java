@@ -3,7 +3,12 @@ package com.epam.assessment.library.persistence;
 import com.epam.assessment.library.domain.Book;
 import com.epam.assessment.library.domain.Loan;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -13,7 +18,7 @@ import java.util.Optional;
 public class LoanRepository {
     private String filePath;
     private BookRepository bookRepository;
-    public static String CSV_SEPARATOR = ",";
+    public static final String CSV_SEPARATOR = ",";
     List<Loan> loanList = new ArrayList<>();
 
     public LoanRepository(String filePath, BookRepository bookRepository) {
@@ -23,7 +28,6 @@ public class LoanRepository {
 
     public void updateCsv() {
         try (BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(filePath), "UTF-8"))) {
-
             bw.write("loanId,bookId,borrowDate,returnDate,rating");
             bw.newLine();
 
@@ -47,66 +51,60 @@ public class LoanRepository {
                 bw.write(oneLine.toString());
                 bw.newLine();
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (IOException e) {
+            throw new RuntimeException("Error writing to loans CSV file at path: " + filePath, e);
         }
     }
 
-    private List<Loan> readLoanCsv(){
-        List<Loan> loanList = new ArrayList<>();
+    public void loadLoans() {
+        loanList = new ArrayList<>();
 
         try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
             String line;
             boolean isFirstLine = true;
 
             while ((line = br.readLine()) != null) {
+                if (line.trim().isEmpty()) {
+                    continue;
+                }
+
                 if (isFirstLine) {
                     isFirstLine = false;
                     continue;
                 }
 
-                String[] values = line.split(",");
-                long loanId = Long.parseLong(values[0].trim());
-
-                long bookId = Long.parseLong(values[1].trim());
-                Optional<Book> opBook = bookRepository.findById(bookId);
-
-                if(opBook.isEmpty()){
-                    throw new IllegalArgumentException("book not found with id: " + bookId);
-                }
-
-                Book book = opBook.get();
-
-                LocalDateTime borrowDate = null;
                 try {
-                    borrowDate = LocalDateTime.parse(values[2].trim());
-                } catch (DateTimeParseException e) {
-                    System.out.println("error of date parse (borrowDate): " + e);
-                }
-
-                LocalDateTime returnDate = null;
-                if (values.length > 3 && !values[3].trim().isEmpty()) {
-                    try {
-                        returnDate = LocalDateTime.parse(values[3].trim());
-                    } catch (DateTimeParseException e) {
-                        System.out.println("error of date parse (returnDate): " + e);
+                    String[] values = line.split(CSV_SEPARATOR);
+                    if (values.length < 3) {
+                        throw new IllegalArgumentException("Invalid CSV row format: missing columns.");
                     }
-                }
 
-                Integer rating = null;
-                if(values.length > 4 && !values[4].trim().isEmpty()){
-                    rating = Integer.parseInt(values[4].trim());
-                }
+                    long loanId = Long.parseLong(values[0].trim());
+                    long bookId = Long.parseLong(values[1].trim());
 
-                loanList.add(new Loan(loanId, book, borrowDate, returnDate, rating));
+                    Book book = bookRepository.findById(bookId)
+                            .orElseThrow(() -> new IllegalArgumentException("Book not found with ID: " + bookId));
+
+                    LocalDateTime borrowDate = LocalDateTime.parse(values[2].trim());
+                    LocalDateTime returnDate = null;
+                    Integer rating = null;
+
+                    if (values.length > 3 && !values[3].trim().isEmpty()) {
+                        returnDate = LocalDateTime.parse(values[3].trim());
+                    }
+
+                    if (values.length > 4 && !values[4].trim().isEmpty()) {
+                        rating = Integer.parseInt(values[4].trim());
+                    }
+
+                    loanList.add(new Loan(loanId, book, borrowDate, returnDate, rating));
+                } catch (IllegalArgumentException | ArrayIndexOutOfBoundsException | DateTimeParseException e) {
+                    throw new IllegalArgumentException("Invalid CSV row format in line: " + line, e);
+                }
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (IOException e) {
+            throw new RuntimeException("Error reading loans CSV file at path: " + filePath, e);
         }
-        return loanList;
-    }
-    public void loadLoans() {
-        this.loanList = readLoanCsv();
     }
 
     public List<Loan> getLoans() {
@@ -123,13 +121,14 @@ public class LoanRepository {
         return loanList.stream()
                 .mapToLong(Loan::getLoanId)
                 .max()
-                .orElse(0) + 1;
+                .orElse(1000) + 1;
     }
 
-    public void saveLoan(Loan loan){
+    public void saveLoan(Loan loan) {
         loanList.add(loan);
     }
-    public void removeLoan(Loan loan){
+
+    public void removeLoan(Loan loan) {
         loanList.remove(loan);
     }
 }

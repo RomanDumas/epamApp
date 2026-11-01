@@ -38,7 +38,6 @@ public class Application {
         bookRepository.loadBooks();
         loanRepository.loadLoans();
         userInterface.interact();
-
         loanRepository.updateCsv();
     }
 }
