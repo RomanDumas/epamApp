@@ -37,4 +37,10 @@ public class Loan {
         return rating;
     }
 
+
+
+    @Override
+    public String toString() {
+        return loanId +" {"+ book +"} raring"+ rating + "\nborrowDate" + borrowDate + "\nreturnDate" + returnDate;
+    }
 }

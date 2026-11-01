@@ -5,9 +5,17 @@ import com.epam.assessment.library.persistence.LoanRepository;
 import com.epam.assessment.library.service.BookLoanService;
 import com.epam.assessment.library.presentation.UserInterface;
 
+/*
+=======WHAT I NEED TO DO AFTER DOTA 2=========
+    -change all local variables to final
+    -write userInterface class
+    -check all exceptions
+    -recheck all demands to assessment
+ */
+
 public class Application {
-    private static final String BOOKS_CSV_PATH = "data/books.csv";
-    private static final String LOANS_CSV_PATH = "data/loans.csv";
+    private static final String BOOKS_CSV_PATH = "test_data/books.csv";
+    private static final String LOANS_CSV_PATH = "test_data/loans.csv";
 
     private final BookRepository bookRepository;
     private final LoanRepository loanRepository;
@@ -30,5 +38,7 @@ public class Application {
         bookRepository.loadBooks();
         loanRepository.loadLoans();
         userInterface.interact();
+
+        loanRepository.updateCsv();
     }
 }
